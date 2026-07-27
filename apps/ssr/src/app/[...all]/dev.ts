@@ -1,15 +1,22 @@
+/* eslint-disable node/prefer-global/process */
 import { extname } from 'node:path'
 
 import { DOMParser } from 'linkedom'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
+import { gateResponseIfNeeded } from '~/lib/gate-response'
 import { injectConfigToDocument } from '~/lib/injectable'
 
 const host = 'http://localhost:13333'
 export const handler = async (req: NextRequest) => {
   if (process.env.NODE_ENV !== 'development') {
     return new NextResponse(null, { status: 404 })
+  }
+
+  const gate = gateResponseIfNeeded(req)
+  if (gate) {
+    return gate
   }
 
   const { pathname } = req.nextUrl
@@ -22,8 +29,6 @@ export const handler = async (req: NextRequest) => {
   if (pathname.startsWith('/photos')) {
     const hasExtension = Boolean(extname(pathname))
 
-    // When the browser requests a photo detail route (no file extension, accepts HTML),
-    // serve the SPA shell instead of proxying to the static photo server.
     if (!hasExtension && wantsHtml) {
       return proxyIndexHtml()
     }
@@ -46,7 +51,7 @@ async function proxyAssets(req: NextRequest) {
 }
 
 async function proxyIndexHtml() {
-  const htmlText = await fetch(host).then((res) => res.text())
+  const htmlText = await fetch(host).then(res => res.text())
 
   const parser = new DOMParser()
   const document = parser.parseFromString(htmlText, 'text/html')
@@ -76,7 +81,10 @@ async function proxyIndexHtml() {
   injectConfigToDocument(document)
 
   return new NextResponse(document.documentElement.outerHTML, {
-    headers: { 'Content-Type': 'text/html' },
+    headers: {
+      'Content-Type': 'text/html',
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+    },
   })
 }
 const replaceUrl = (url: string, host: string) => {

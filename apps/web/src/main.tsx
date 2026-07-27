@@ -8,8 +8,7 @@ import { AppSkeleton } from './components/ui/app-skeleton'
 import { router } from './router'
 
 if (import.meta.env.DEV) {
-  const { start } = await import('react-scan')
-  start()
+  import('react-scan').then(({ start }) => start())
 }
 
 createRoot(document.querySelector('#root')!).render(
