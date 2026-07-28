@@ -94,6 +94,7 @@ export const PageHeaderRight = () => {
 
 const MoreActionMenu = () => {
   const { t } = useTranslation()
+  const [isLocking, setIsLocking] = useState(false)
   const [settings, setSettings] = useAtom(gallerySettingAtom)
 
   const githubUrl
@@ -165,6 +166,34 @@ const MoreActionMenu = () => {
               RSS
             </a>
           </DropdownMenuItem>
+        )}
+
+        {injectConfig.passwordProtected && (
+          <>
+            {(githubUrl || twitterUrl || hasRss) && <DropdownMenuSeparator />}
+            <DropdownMenuItem
+              disabled={isLocking}
+              onClick={async () => {
+                if (isLocking) return
+                setIsLocking(true)
+                try {
+                  const res = await fetch('/api/lock', { method: 'POST' })
+                  if (res.ok) {
+                    window.location.href = '/'
+                    return
+                  }
+                } catch {
+                  // 请求失败，恢复按钮状态
+                }
+                setIsLocking(false)
+              }}
+            >
+              <span className="flex items-center gap-2">
+                <i className="i-mingcute-unlock-line text-base" />
+                {t('action.lock')}
+              </span>
+            </DropdownMenuItem>
+          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
