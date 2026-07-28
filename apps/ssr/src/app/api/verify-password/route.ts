@@ -6,11 +6,9 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
-import { AUTH_COOKIE, COOKIE_OPTIONS } from '~/lib/auth'
+import { AUTH_COOKIE, COOKIE_OPTIONS, LOCKOUT_COOKIE } from '~/lib/auth'
 
 const ACCESS_SECRET = process.env.ACCESS_PASSWORD ?? ''
-
-const LOCKOUT_COOKIE = 'afilmory-lockout'
 const MAX_ATTEMPTS = 5
 const LOCKOUT_MINUTES = 15
 const LOCKOUT_MS = LOCKOUT_MINUTES * 60 * 1000

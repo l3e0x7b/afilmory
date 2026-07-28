@@ -10,6 +10,7 @@ export const injectConfigToDocument = (document: OnlyHTMLDocument) => {
   const injectConfigBase = {
     useApi: DbManager.shared.isEnabled(),
     useNext: true,
+    passwordProtected: !!process.env.ACCESS_PASSWORD,
   }
   if ($config) {
     $config.innerHTML = `window.__CONFIG__ = ${JSON.stringify(injectConfigBase)};window.__SITE_CONFIG__ = ${JSON.stringify(siteConfig)};`

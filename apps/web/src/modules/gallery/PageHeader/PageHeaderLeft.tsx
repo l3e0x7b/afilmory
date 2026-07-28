@@ -1,12 +1,16 @@
 import * as AvatarPrimitive from '@radix-ui/react-avatar'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
-import { siteConfig } from '~/config'
+import { injectConfig, siteConfig } from '~/config'
 import { usePhotos } from '~/hooks/usePhotoViewer'
 
 import { resolveSocialUrl, SocialIconButton } from './utils'
 
 export const PageHeaderLeft = () => {
+  const { t } = useTranslation()
   const visiblePhotoCount = usePhotos().length
+  const [isLocking, setIsLocking] = useState(false)
 
   const githubUrl =
     siteConfig.social && siteConfig.social.github
@@ -42,11 +46,40 @@ export const PageHeaderLeft = () => {
         <h1 className="truncate text-sm font-semibold text-white lg:text-base">{siteConfig.name}</h1>
         <span className="text-xs text-white/40 lg:text-sm">{visiblePhotoCount}</span>
       </div>
-      {(githubUrl || twitterUrl || hasRss) && (
+      {(githubUrl || twitterUrl || hasRss || injectConfig.passwordProtected) && (
         <div className="ml-1 hidden items-center gap-1 border-l border-white/10 pl-2 lg:flex">
           {githubUrl && <SocialIconButton icon="i-mingcute-github-fill" title="GitHub" href={githubUrl} />}
           {twitterUrl && <SocialIconButton icon="i-mingcute-twitter-fill" title="Twitter" href={twitterUrl} />}
           {hasRss && <SocialIconButton icon="i-mingcute-rss-2-fill" title="RSS" href="/feed.xml" />}
+
+          {injectConfig.passwordProtected && (githubUrl || twitterUrl || hasRss) && (
+            <div className="h-6 border-l border-white/10 lg:h-7" />
+          )}
+
+          {injectConfig.passwordProtected && (
+            <button
+              type="button"
+              disabled={isLocking}
+              className="inline-flex size-6 cursor-pointer items-center justify-center rounded text-white/40 transition-colors duration-200 hover:text-white/80 disabled:cursor-not-allowed disabled:opacity-40 lg:size-7"
+              title={t('action.lock')}
+              onClick={async () => {
+                if (isLocking) return
+                setIsLocking(true)
+                try {
+                  const res = await fetch('/api/lock', { method: 'POST' })
+                  if (res.ok) {
+                    window.location.href = '/'
+                    return
+                  }
+                } catch {
+                  // 请求失败，恢复按钮状态
+                }
+                setIsLocking(false)
+              }}
+            >
+              <i className="i-mingcute-unlock-line text-sm lg:text-base" />
+            </button>
+          )}
         </div>
       )}
     </div>

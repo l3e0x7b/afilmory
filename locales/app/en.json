@@ -32,6 +32,7 @@
   "action.lens.filter": "Lens Filter",
   "action.lens.not-found": "No lenses match your search",
   "action.lens.search": "Search Lenses",
+  "action.lock": "Lock",
   "action.login": "Sign In",
   "action.map.explore": "Map Explore",
   "action.rating.filter": "Rating Filter",

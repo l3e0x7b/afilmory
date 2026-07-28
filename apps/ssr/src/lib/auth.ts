@@ -3,6 +3,7 @@
 import type { NextRequest } from 'next/server'
 
 export const AUTH_COOKIE = 'afilmory-auth'
+export const LOCKOUT_COOKIE = 'afilmory-lockout'
 
 const AUTH_TIMEOUT_HOURS = Number(process.env.ACCESS_TIMEOUT_HOURS) || 4
 
