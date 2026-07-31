@@ -2,7 +2,14 @@ import { ofetch } from 'ofetch'
 
 import { apiClient, SAAS_BASE_DOMAIN } from '@/api/client'
 
-import type { FeaturedGallery, GalleryCoverPhoto, GalleryPhoto } from './types'
+import type {
+  FeaturedGallery,
+  GalleryCoverPhoto,
+  GalleryExif,
+  GalleryLocation,
+  GalleryPhoto,
+  GalleryToneAnalysis,
+} from './types'
 
 export async function fetchFeaturedGalleries(signal?: AbortSignal): Promise<FeaturedGallery[]> {
   const res = await apiClient<{ galleries: FeaturedGallery[] }>('/featured-galleries', { signal })
@@ -11,16 +18,67 @@ export async function fetchFeaturedGalleries(signal?: AbortSignal): Promise<Feat
 
 interface ManifestPhoto {
   id: string
+  title?: string
+  description?: string
+  originalUrl?: string
   thumbnailUrl: string
   thumbHash?: string | null
   width?: number
   height?: number
   aspectRatio?: number
+  format?: string
+  size?: number
   dateTaken?: string | null
+  video?: { type?: string } | null
+  tags?: string[]
+  exif?: GalleryExif | null
+  toneAnalysis?: GalleryToneAnalysis | null
+  location?: {
+    latitude?: number
+    longitude?: number
+    country?: string | null
+    city?: string | null
+    locationName?: string | null
+  } | null
 }
 
 function photoAspectRatio(photo: ManifestPhoto): number {
   return photo.aspectRatio ?? (photo.width && photo.height ? photo.width / photo.height : 1)
+}
+
+function photoCamera(exif: ManifestPhoto['exif']): string | null {
+  const make = exif?.Make?.trim()
+  const model = exif?.Model?.trim()
+  if (make && model) {
+    return model.toLowerCase().startsWith(make.toLowerCase()) ? model : `${make} ${model}`
+  }
+  return make || model || null
+}
+
+function photoLens(exif: ManifestPhoto['exif']): string | null {
+  const lens = exif?.LensModel?.trim()
+  return lens || null
+}
+
+function photoRating(exif: ManifestPhoto['exif']): number | null {
+  if (exif?.Rating == null || !Number.isFinite(exif.Rating)) {
+    return null
+  }
+  return Math.min(5, Math.max(0, Math.round(exif.Rating)))
+}
+
+function photoLocation(location: ManifestPhoto['location']): GalleryLocation | null {
+  if (!location) {
+    return null
+  }
+
+  return {
+    latitude: location.latitude ?? null,
+    longitude: location.longitude ?? null,
+    country: location.country ?? null,
+    city: location.city ?? null,
+    locationName: location.locationName ?? null,
+  }
 }
 
 export async function fetchGalleryManifest(slug: string, signal?: AbortSignal): Promise<GalleryPhoto[]> {
@@ -32,11 +90,26 @@ export async function fetchGalleryManifest(slug: string, signal?: AbortSignal): 
     .sort((a, b) => (b.dateTaken ?? '').localeCompare(a.dateTaken ?? ''))
     .map(photo => ({
       id: photo.id,
+      title: photo.title ?? '',
+      description: photo.description ?? '',
+      originalUrl: photo.originalUrl || photo.thumbnailUrl,
       thumbnailUrl: photo.thumbnailUrl,
       thumbHash: photo.thumbHash ?? null,
       aspectRatio: photoAspectRatio(photo),
       width: photo.width ?? 0,
       height: photo.height ?? 0,
+      format: photo.format ?? null,
+      size: photo.size ?? null,
+      dateTaken: photo.dateTaken ?? null,
+      isLive: Boolean(photo.video),
+      tags: photo.tags ?? [],
+      exif: photo.exif ?? null,
+      toneAnalysis: photo.toneAnalysis ?? null,
+      location: photoLocation(photo.location),
+      camera: photoCamera(photo.exif),
+      lens: photoLens(photo.exif),
+      rating: photoRating(photo.exif),
+      city: photo.location?.city ?? photo.location?.locationName ?? null,
     }))
 }
 
@@ -49,6 +122,22 @@ export function getCachedGalleryCovers(slug: string): GalleryCoverPhoto[] | unde
   return coverCache.get(slug)
 }
 
+export async function fetchGalleryPreviewPhotos(slug: string, limit: number): Promise<GalleryCoverPhoto[]> {
+  const res = await ofetch<{ data: ManifestPhoto[] }>(
+    `https://${slug}.${SAAS_BASE_DOMAIN}/api/manifest/photos/search`,
+    {
+      method: 'POST',
+      body: { limit, sort: 'desc' },
+    },
+  )
+  return res.data.map(photo => ({
+    id: photo.id,
+    thumbnailUrl: photo.thumbnailUrl,
+    thumbHash: photo.thumbHash ?? null,
+    aspectRatio: photoAspectRatio(photo),
+  }))
+}
+
 export function fetchGalleryCovers(gallery: FeaturedGallery): Promise<GalleryCoverPhoto[]> {
   const cached = coverCache.get(gallery.slug)
   if (cached) {
@@ -59,20 +148,8 @@ export function fetchGalleryCovers(gallery: FeaturedGallery): Promise<GalleryCov
     return pending
   }
 
-  const request = ofetch<{ data: ManifestPhoto[] }>(
-    `https://${gallery.slug}.${SAAS_BASE_DOMAIN}/api/manifest/photos/search`,
-    {
-      method: 'POST',
-      body: { limit: COVER_COUNT, sort: 'desc' },
-    },
-  )
-    .then((res) => {
-      const covers = res.data.map(photo => ({
-        id: photo.id,
-        thumbnailUrl: photo.thumbnailUrl,
-        thumbHash: photo.thumbHash ?? null,
-        aspectRatio: photoAspectRatio(photo),
-      }))
+  const request = fetchGalleryPreviewPhotos(gallery.slug, COVER_COUNT)
+    .then((covers) => {
       coverCache.set(gallery.slug, covers)
       return covers
     })
