@@ -1,6 +1,16 @@
 {
   "platforms": ["apple"],
   "apple": {
-    "modules": ["PhotoMasonryModule", "PhotoViewerModule", "PhotoSheetsModule"]
+    "modules": [
+      "AfilmorySessionModule",
+      "PhotoDetailModule",
+      "PhotoMapModule",
+      "PhotoMasonryModule",
+      "PhotoSidebarModule",
+      "PhotoViewerModule",
+      "PhotoSheetsModule",
+      "PhotoUploadModule"
+    ],
+    "appDelegateSubscribers": ["UploadAppDelegateSubscriber"]
   }
 }

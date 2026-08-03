@@ -4,10 +4,12 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { useTranslation } from '@/i18n'
 import { useOpenPhotoViewer } from '@/modules/photo-viewer/useOpenPhotoViewer'
+import { usePhotoContextMenu } from '@/modules/photo-viewer/usePhotoContextMenu'
 import type { Palette } from '@/theme/palette'
 import { font } from '@/theme/tokens'
 import { useTheme } from '@/theme/useTheme'
 
+import { buildPhotoMasonryItem } from './photoMasonryItem'
 import { useGalleryManifest } from './useGalleryManifest'
 
 export function GalleryMasonry({ slug }: { slug: string }) {
@@ -15,20 +17,11 @@ export function GalleryMasonry({ slug }: { slug: string }) {
   const { t } = useTranslation()
   const styles = useMemo(() => createStyles(palette), [palette])
   const { error, loading, photos, retry } = useGalleryManifest(slug)
-  const openPhoto = useOpenPhotoViewer(photos)
+  const openPhoto = useOpenPhotoViewer(photos, slug)
+  const handlePhotoContextMenu = usePhotoContextMenu(photos)
   const items = useMemo(
     () =>
-      photos.map(photo => ({
-        accessibilityLabel: t('photo.accessibility', { id: photo.title || photo.id }),
-        id: photo.id,
-        url: photo.thumbnailUrl,
-        originalUrl: photo.originalUrl,
-        thumbHash: photo.thumbHash,
-        aspectRatio: photo.aspectRatio,
-        width: photo.width,
-        height: photo.height,
-        isLive: photo.isLive,
-      })),
+      photos.map(photo => buildPhotoMasonryItem(photo, t('photo.accessibility', { id: photo.title || photo.id }))),
     [photos, t],
   )
 
@@ -63,11 +56,15 @@ export function GalleryMasonry({ slug }: { slug: string }) {
   return (
     <PhotoMasonryView
       chromeVisible={false}
+      contextMenuInfoTitle={t('photo.info')}
+      contextMenuShareTitle={t('photo.share')}
       defaultColumnCount={2}
       extraBottomInset={96}
       gap={4}
+      livePhotoAccessibilityLabel={t('photo.livePhoto')}
       photos={items}
       style={styles.masonry}
+      onPhotoContextMenuAction={handlePhotoContextMenu}
       onPhotoPress={openPhoto}
     />
   )
