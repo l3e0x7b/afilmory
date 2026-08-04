@@ -88,6 +88,61 @@ final class UploadCenter: NSObject {
     }
   }
 
+  func enqueuePreparedAssets(
+    endpoint: String,
+    directory: String?,
+    items: [UploadStagedAsset]
+  ) throws -> Int {
+    var preparedJobs: [UploadJobState] = []
+    var createdJobIDs: [String] = []
+    do {
+      for item in items {
+        let jobID = UUID().uuidString
+        createdJobIDs.append(jobID)
+        let boundary = "afilmory-\(UUID().uuidString)"
+        let previewURL = Self.previewURL(jobID)
+        UploadJobPreparer.writePreview(forFileAt: item.photo.url, to: previewURL)
+        let prepared = try UploadJobPreparer.buildBody(
+          forFiles: item.files,
+          directory: directory,
+          boundary: boundary,
+          to: Self.bodyURL(jobID)
+        )
+        preparedJobs.append(
+          UploadJobState(
+            id: jobID,
+            assetId: "share:\(item.id)",
+            name: prepared.name,
+            bytes: prepared.bytes,
+            status: .queued,
+            progress: 0,
+            attempt: 1,
+            error: nil,
+            endpoint: endpoint,
+            directory: directory,
+            boundary: boundary
+          )
+        )
+      }
+    } catch {
+      for jobID in createdJobIDs {
+        try? FileManager.default.removeItem(at: Self.bodyURL(jobID))
+        try? FileManager.default.removeItem(at: Self.previewURL(jobID))
+      }
+      throw error
+    }
+
+    stateQueue.sync {
+      jobs.append(contentsOf: preparedJobs)
+      for job in preparedJobs {
+        startTaskLocked(jobId: job.id, delay: 0)
+      }
+      persistLocked()
+      scheduleEmitLocked()
+    }
+    return preparedJobs.count
+  }
+
   func snapshot() -> [[String: Any?]] {
     stateQueue.sync { snapshotLocked() }
   }
