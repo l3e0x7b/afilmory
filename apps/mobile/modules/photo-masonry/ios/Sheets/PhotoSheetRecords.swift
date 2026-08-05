@@ -120,6 +120,8 @@ struct PhotoFilterLocalizationRecord: Record {
   @Field var rating: String = ""
   @Field var ratingOptions: [String] = []
   @Field var reset: String = ""
+  @Field var search: String = ""
+  @Field var searchPlaceholder: String = ""
   @Field var selected: String = ""
   @Field var tags: String = ""
   @Field var title: String = ""
@@ -141,6 +143,7 @@ struct PhotoFilterOptionsRecord: Record {
 }
 
 struct PhotoFiltersRecord: Record {
+  @Field var query: String = ""
   @Field var tags: [String] = []
   @Field var tagMode: String = "any"
   @Field var datePreset: String?
@@ -165,10 +168,12 @@ struct ProfileStripItemRecord: Record {
 }
 
 struct ProfileLocalizationRecord: Record {
+  @Field var accountSettings: String = ""
   @Field var cacheCleared: String = ""
   @Field var cancel: String = ""
   @Field var clearCache: String = ""
   @Field var done: String = ""
+  @Field var deleteAccount: String = ""
   @Field var openWeb: String = ""
   @Field var signOut: String = ""
   @Field var signOutConfirmTitle: String = ""
