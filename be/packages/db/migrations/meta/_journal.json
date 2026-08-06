@@ -141,6 +141,20 @@
       "when": 1785785111479,
       "tag": "0019_great_skin",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1785946691000,
+      "tag": "0020_tenant_cookie_isolation",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1785948023126,
+      "tag": "0021_dry_rhodey",
+      "breakpoints": true
     }
   ]
 }
