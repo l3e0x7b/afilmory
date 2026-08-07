@@ -1,4 +1,12 @@
-import { authAccounts, authSessions, authUsers, authVerifications, creemSubscriptions, generateId } from '@afilmory/db'
+import {
+  authAccounts,
+  authSessions,
+  authUsers,
+  authVerifications,
+  creemSubscriptions,
+  generateId,
+  platformActivityEvents,
+} from '@afilmory/db'
 import { env } from '@afilmory/env'
 import { expo } from '@better-auth/expo'
 import { DrizzleProvider } from '@core/database/database.provider'
@@ -26,6 +34,7 @@ import { AppleAuthorizationService } from './apple-authorization.service'
 import { AppleClientSecretService } from './apple-client-secret.service'
 import type { AuthModuleOptions, SocialProviderOptions, SocialProvidersConfig } from './auth.config'
 import { AuthConfig } from './auth.config'
+import { AUTH_ACCOUNT_POLICY } from './auth-account.policy'
 import { AUTH_ADMIN_PLUGIN_OPTIONS } from './auth-admin.policy'
 import { AUTH_COOKIE_POLICY } from './auth-cookie.policy'
 import { WorkspaceMembershipService } from './workspace-membership.service'
@@ -34,6 +43,7 @@ export type BetterAuthInstance = ReturnType<typeof betterAuth>
 
 const logger = createLogger('Auth')
 const TRAILING_SLASHES_PATTERN = /\/+$/
+const MOBILE_USER_AGENT_PATTERN = /Afilmory|Expo|CFNetwork/i
 
 // The reserved `api` slug never resolves to a tenant, which makes its host the
 // natural home for the mobile login broker: OAuth completes there and the
@@ -217,15 +227,7 @@ export class AuthProvider implements OnModuleInit {
           activeTenantId: { type: 'string', input: false },
         },
       },
-      account: {
-        // The OAuth gateway forwards the callback across a cross-subdomain
-        // redirect hop (auth.<domain> -> <tenant>.<domain>), which real
-        // browsers can drop the auth-state cookie on depending on SameSite
-        // enforcement. The gateway's HMAC-signed state envelope plus Better
-        // Auth's own DB-backed verification record already authenticate the
-        // callback, so this redundant cookie check is safe to skip.
-        skipStateCookieCheck: true,
-      },
+      account: AUTH_ACCOUNT_POLICY,
 
       user: {
         additionalFields: {
@@ -269,6 +271,24 @@ export class AuthProvider implements OnModuleInit {
                   activeTenantId,
                 },
               }
+            },
+            after: async (session) => {
+              const occurredAt = new Date().toISOString()
+              const surface = MOBILE_USER_AGENT_PATTERN.test(session.userAgent ?? '') ? 'mobile' : 'web'
+              await db.transaction(async (tx) => {
+                await tx
+                  .update(authUsers)
+                  .set({ lastSignedInAt: occurredAt, lastActiveAt: occurredAt, lastActiveSurface: surface })
+                  .where(eq(authUsers.id, session.userId))
+                await tx.insert(platformActivityEvents).values({
+                  userId: session.userId,
+                  tenantId: typeof session.activeTenantId === 'string' ? session.activeTenantId : null,
+                  sessionId: session.id,
+                  eventType: 'auth.signed_in',
+                  surface,
+                  occurredAt,
+                })
+              })
             },
           },
         },
