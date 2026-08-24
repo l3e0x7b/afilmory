@@ -1,5 +1,6 @@
 /* eslint-disable node/prefer-global/process */
 import { extname } from 'node:path'
+import process from 'node:process'
 
 import { DOMParser } from 'linkedom'
 import type { NextRequest } from 'next/server'
@@ -21,18 +22,21 @@ export const handler = async (req: NextRequest) => {
 
   const { pathname } = req.nextUrl
   const wantsHtml = req.headers.get('accept')?.includes('text/html')
+  const hasExtension = Boolean(extname(pathname))
 
   if (pathname.startsWith('/thumbnails')) {
     return proxyAssets(req)
   }
 
   if (pathname.startsWith('/photos')) {
-    const hasExtension = Boolean(extname(pathname))
-
     if (!hasExtension && wantsHtml) {
       return proxyIndexHtml()
     }
 
+    return proxyAssets(req)
+  }
+
+  if (hasExtension || pathname.startsWith('/@') || pathname.startsWith('/node_modules')) {
     return proxyAssets(req)
   }
 
